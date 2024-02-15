@@ -1,6 +1,8 @@
 # ClickHouse
 
-`clickhouse://host:port?username=user&password=password&database=clicks&x-multi-statement=true`
+`clickhouse://username:password@host:port/database?dial_timeout=200ms&max_execution_time=60&x-multi-statement=true`
+
+For more parameters refer to the original [Clickhouse-Go](https://github.com/ClickHouse/clickhouse-go?tab=readme-ov-file#dsn)
 
 | URL Query  | Description |
 |------------|-------------|

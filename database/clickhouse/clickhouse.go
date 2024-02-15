@@ -97,7 +97,7 @@ func (ch *ClickHouse) Open(dsn string) (database.Driver, error) {
 		config: &Config{
 			MigrationsTable:       purl.Query().Get("x-migrations-table"),
 			MigrationsTableEngine: migrationsTableEngine,
-			DatabaseName:          purl.Query().Get("database"),
+			DatabaseName:          strings.TrimLeft(purl.Path, "/"),
 			ClusterName:           purl.Query().Get("x-cluster-name"),
 			MultiStatementEnabled: purl.Query().Get("x-multi-statement") == "true",
 			MultiStatementMaxSize: multiStatementMaxSize,
@@ -193,7 +193,15 @@ func (ch *ClickHouse) SetVersion(version int, dirty bool) error {
 	}
 
 	query := "INSERT INTO " + ch.config.MigrationsTable + " (version, dirty, sequence) VALUES (?, ?, ?)"
-	if _, err := tx.Exec(query, version, bool(dirty), time.Now().UnixNano()); err != nil {
+	stmt, err := tx.Prepare(query)
+	if err != nil {
+		if errRollback := tx.Rollback(); errRollback != nil {
+			return fmt.Errorf("error during prepare statement %w and rollback %s", err, errRollback.Error())
+		}
+		return err
+	}
+
+	if _, err := stmt.Exec(int64(version), bool(dirty), uint64(time.Now().UnixNano())); err != nil {
 		return &database.Error{OrigErr: err, Query: []byte(query)}
 	}
 

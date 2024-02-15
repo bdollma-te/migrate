@@ -6,9 +6,10 @@ import (
 	sqldriver "database/sql/driver"
 	"fmt"
 	"log"
+	"net/url"
 	"testing"
 
-	_ "github.com/ClickHouse/clickhouse-go"
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/dhui/dktest"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/clickhouse"
@@ -33,12 +34,12 @@ var (
 func clickhouseConnectionString(host, port, engine string) string {
 	if engine != "" {
 		return fmt.Sprintf(
-			"clickhouse://%v:%v?username=user&password=password&database=db&x-multi-statement=true&x-migrations-table-engine=%v&debug=false",
+			"clickhouse://user:password@%v:%v/db?x-multi-statement=true&x-migrations-table-engine=%v&debug=false",
 			host, port, engine)
 	}
 
 	return fmt.Sprintf(
-		"clickhouse://%v:%v?username=user&password=password&database=db&x-multi-statement=true&debug=false",
+		"clickhouse://user:password@%v:%v/db?x-multi-statement=true&debug=false",
 		host, port)
 }
 
@@ -114,7 +115,13 @@ func testSimpleWithInstanceDefaultConfigValues(t *testing.T) {
 		}
 
 		addr := clickhouseConnectionString(ip, port, "")
-		conn, err := sql.Open("clickhouse", addr)
+		purl, err := url.Parse(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		q := migrate.FilterCustomQuery(purl)
+		q.Scheme = "tcp"
+		conn, err := sql.Open("clickhouse", q.String())
 		if err != nil {
 			t.Fatal(err)
 		}
